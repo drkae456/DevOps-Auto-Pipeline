@@ -1,0 +1,84 @@
+name: Deploy microservice
+
+on:
+  #
+  # Deploys the microservice on push to the main branch of this code repository.
+  #
+  push:
+    branches:
+      - main
+
+  #
+  # Allows deployment to be invoked manually through the GitHub Actions user interface.
+  #
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      VERSION: ${{ github.sha }}
+      ACR_NAME: ${{ secrets.ACR_NAME }}
+      ACR_UN: ${{ secrets.ACR_UN }}
+      ACR_PW: ${{ secrets.ACR_PW }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE.
+      - uses: actions/checkout@v3
+
+      #
+      # Builds the Docker image.
+      #
+      - name: Build
+        run: ./scripts/build-image.sh
+
+      #
+      # Publishes the Docker image to the container registry.
+      #
+      - name: Publish
+        run: ./scripts/push-image.sh
+
+      #
+      # Installs Kubectl and connects it to the cluster.
+      #
+      - uses: tale/kubectl-action@v1
+        with:
+          base64-kube-config: ${{ secrets.KUBE_CONFIG }}
+          kubectl-version: v1.31.0
+
+      #
+      # Expands the configuration template and deploys the microservice.
+      #
+      - name: Deploy
+        run: ./scripts/deploy.sh
+
+      #
+      # Set up Terraform
+      #
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.5.0
+
+      #
+      # Initialize Terraform
+      #
+      - name: Terraform Init
+        run: terraform init
+        working-directory: ./terraform
+
+      #
+      # Terraform Plan
+      #
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan
+        working-directory: ./terraform
+
+      #
+      # Terraform Apply
+      #
+      - name: Terraform Apply
+        run: terraform apply -auto-approve tfplan
+        working-directory: ./terraform

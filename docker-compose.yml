@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  book_catalog:
+    image: "${ACR_NAME}/book-catalog:${VERSION}"
+    container_name: book_catalog_service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    ports:
+      - "8001:8000"  # Mapping internal port 8000 to external port 8001
+    depends_on:
+      - postgres_db
+    networks:
+      - backend
+
+  inventory_management:
+    image: "${ACR_NAME}/inventory-management:${VERSION}"
+    container_name: inventory_management_service
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+    ports:
+      - "8002:8000"  # Mapping internal port 8000 to external port 8002
+    depends_on:
+      - postgres_db
+    networks:
+      - backend
+
+  postgres_db:
+    image: postgres:13
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: part4_native_devops_user
+      POSTGRES_PASSWORD: 6EncBxNRFiyxAUuMahhKITLrgd3zQR8u
+      POSTGRES_DB: part4_native_devops
+    ports:
+      - "5432:5432"  # Exposing PostgreSQL's default port
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  pgdata:
